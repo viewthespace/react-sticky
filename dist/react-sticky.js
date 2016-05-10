@@ -210,13 +210,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	var Sticky = function (_React$Component) {
 	  _inherits(Sticky, _React$Component);
 
-	  function Sticky(props) {
+	  function Sticky(props, context) {
 	    _classCallCheck(this, Sticky);
 
-	    var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(Sticky).call(this, props));
+	    var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(Sticky).call(this, props, context));
 
 	    _this.onScroll = function () {
-	      var pageY = window.pageYOffset;
+	      var pageY = _this.getScrollTop();
 	      var origin = _this.getOrigin(pageY);
 	      var isSticky = _this.isSticky(pageY, _this.state.origin);
 	      var hasChanged = _this.state.isSticky !== isSticky;
@@ -229,10 +229,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    _this.onResize = function () {
 	      var height = _reactDom2.default.findDOMNode(_this).getBoundingClientRect().height;
-	      var origin = _this.getOrigin(window.pageYOffset);
+	      var origin = _this.getOrigin(_this.getScrollTop());
 	      _this.setState({ height: height, origin: origin });
 	    };
 
+	    _this.viewport = _this.props.viewport || window;
 	    _this.state = {
 	      isSticky: false
 	    };
@@ -243,19 +244,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	    key: 'componentDidMount',
 	    value: function componentDidMount() {
 	      this.update();
-	      this.on(['scroll', 'touchstart', 'touchmove', 'touchend', 'pageshow', 'load'], this.onScroll);
-	      this.on(['resize', 'pageshow', 'load'], this.onResize);
+	      this.startListening();
 	    }
 	  }, {
 	    key: 'componentWillReceiveProps',
-	    value: function componentWillReceiveProps() {
+	    value: function componentWillReceiveProps(nextProps) {
 	      this.update();
+	      if (this.viewport !== nextProps.viewport) {
+	        this.stopListening();
+	        this.viewport = nextProps.viewport || window;
+	      }
+	    }
+	  }, {
+	    key: 'componentDidUpdate',
+	    value: function componentDidUpdate(previousProps) {
+	      if (this.viewport !== previousProps.viewport) {
+	        this.startListening();
+	      }
 	    }
 	  }, {
 	    key: 'componentWillUnmount',
 	    value: function componentWillUnmount() {
-	      this.off(['scroll', 'touchstart', 'touchmove', 'touchend', 'pageshow', 'load'], this.onScroll);
-	      this.off(['resize', 'pageshow', 'load'], this.onResize);
+	      this.stopListening();
 	    }
 	  }, {
 	    key: 'getOrigin',
@@ -263,10 +273,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return this.refs.placeholder.getBoundingClientRect().top + pageY;
 	    }
 	  }, {
+	    key: 'getScrollTop',
+	    value: function getScrollTop() {
+	      if (this.viewport == window) return window.pageYOffset;
+	      if (this.viewport.scrollTop) return this.viewport.scrollTop;
+	      return 0;
+	    }
+	  }, {
+	    key: 'startListening',
+	    value: function startListening() {
+	      this.on(['scroll', 'touchstart', 'touchmove', 'touchend', 'pageshow', 'load'], this.onScroll);
+	      this.on(['resize', 'pageshow', 'load'], this.onResize);
+	    }
+	  }, {
+	    key: 'stopListening',
+	    value: function stopListening() {
+	      this.off(['scroll', 'touchstart', 'touchmove', 'touchend', 'pageshow', 'load'], this.onScroll);
+	      this.off(['resize', 'pageshow', 'load'], this.onResize);
+	    }
+	  }, {
 	    key: 'update',
 	    value: function update() {
 	      var height = _reactDom2.default.findDOMNode(this).getBoundingClientRect().height;
-	      var pageY = window.pageYOffset;
+	      var pageY = this.getScrollTop();
 	      var origin = this.getOrigin(pageY);
 	      var isSticky = this.isSticky(pageY, origin);
 	      this.setState({ height: height, origin: origin, isSticky: isSticky });
@@ -279,15 +308,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }, {
 	    key: 'on',
 	    value: function on(events, callback) {
+	      var _this2 = this;
+
 	      events.forEach(function (evt) {
-	        window.addEventListener(evt, callback);
+	        _this2.viewport.addEventListener(evt, callback);
 	      });
 	    }
 	  }, {
 	    key: 'off',
 	    value: function off(events, callback) {
+	      var _this3 = this;
+
 	      events.forEach(function (evt) {
-	        window.removeEventListener(evt, callback);
+	        _this3.viewport.removeEventListener(evt, callback);
 	      });
 	    }
 
@@ -347,6 +380,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 	Sticky.defaultProps = {
 	  isActive: true,
+	  viewport: null, // null because window might not be ready yet
 	  className: '',
 	  style: {},
 	  stickyClassName: 'sticky',

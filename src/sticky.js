@@ -7,14 +7,15 @@ export default class Sticky extends React.Component {
     container: React.PropTypes.any,
     offset: React.PropTypes.number,
     rect: React.PropTypes.object
-  }
+  };
 
   static propTypes = {
     isActive: React.PropTypes.bool
-  }
+  };
 
   static defaultProps = {
     isActive: true,
+    viewport: null, // null because window might not be ready yet
     className: '',
     style: {},
     stickyClassName: 'sticky',
@@ -22,11 +23,11 @@ export default class Sticky extends React.Component {
     topOffset: 0,
     bottomOffset: 0,
     onStickyStateChange: function () {}
-  }
+  };
 
-  constructor(props) {
-    super(props);
-
+  constructor(props, context) {
+    super(props, context);
+    this.viewport = this.props.viewport || window;
     this.state = {
       isSticky: false
     };
@@ -34,26 +35,50 @@ export default class Sticky extends React.Component {
 
   componentDidMount() {
     this.update();
-    this.on(['scroll', 'touchstart', 'touchmove', 'touchend', 'pageshow', 'load'], this.onScroll);
-    this.on(['resize', 'pageshow', 'load'], this.onResize);
+    this.startListening();
   }
 
-  componentWillReceiveProps() {
+  componentWillReceiveProps(nextProps) {
     this.update();
+    if (this.viewport !== nextProps.viewport) {
+      this.stopListening();
+      this.viewport = nextProps.viewport || window;
+    }
+  }
+
+  componentDidUpdate(previousProps) {
+    if (this.viewport !== previousProps.viewport) {
+      this.startListening();
+    }
   }
 
   componentWillUnmount() {
-    this.off(['scroll', 'touchstart', 'touchmove', 'touchend', 'pageshow', 'load'], this.onScroll);
-    this.off(['resize', 'pageshow', 'load'], this.onResize);
+    this.stopListening();
   }
 
   getOrigin(pageY) {
     return this.refs.placeholder.getBoundingClientRect().top + pageY;
   }
 
+  getScrollTop() {
+    if (this.viewport == window) return window.pageYOffset;
+    if (this.viewport.scrollTop) return this.viewport.scrollTop;
+    return 0;
+  }
+
+  startListening() {
+    this.on(['scroll', 'touchstart', 'touchmove', 'touchend', 'pageshow', 'load'], this.onScroll);
+    this.on(['resize', 'pageshow', 'load'], this.onResize);
+  }
+
+  stopListening() {
+    this.off(['scroll', 'touchstart', 'touchmove', 'touchend', 'pageshow', 'load'], this.onScroll);
+    this.off(['resize', 'pageshow', 'load'], this.onResize);
+  }
+
   update() {
     const height = ReactDOM.findDOMNode(this).getBoundingClientRect().height;
-    const pageY = window.pageYOffset;
+    const pageY = this.getScrollTop();
     const origin = this.getOrigin(pageY);
     const isSticky = this.isSticky(pageY, origin);
     this.setState({ height, origin, isSticky });
@@ -65,7 +90,7 @@ export default class Sticky extends React.Component {
   }
 
   onScroll = () => {
-    const pageY = window.pageYOffset;
+    const pageY = this.getScrollTop();
     const origin = this.getOrigin(pageY);
     const isSticky = this.isSticky(pageY, this.state.origin);
     const hasChanged = this.state.isSticky !== isSticky;
@@ -78,19 +103,19 @@ export default class Sticky extends React.Component {
 
   onResize = () => {
     const height = ReactDOM.findDOMNode(this).getBoundingClientRect().height;
-    const origin = this.getOrigin(window.pageYOffset);
+    const origin = this.getOrigin(this.getScrollTop());
     this.setState({ height, origin });
   }
 
   on(events, callback) {
     events.forEach((evt) => {
-      window.addEventListener(evt, callback);
+      this.viewport.addEventListener(evt, callback);
     });
   }
 
   off(events, callback) {
     events.forEach((evt) => {
-      window.removeEventListener(evt, callback);
+      this.viewport.removeEventListener(evt, callback);
     });
   }
 
